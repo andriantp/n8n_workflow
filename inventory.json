@@ -1,0 +1,1061 @@
+{
+  "name": "inventory",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Kamu adalah asisten sistem manajemen inventory gudang yang menjawab perintah user dalam bahasa alami.\n\nTugasmu adalah:\n1. Abaikan bagian mention seperti \"@inventory_warehouse_bot\", \"@bot\", dll di awal pesan.\n2. Fokus pada isi perintah user setelah mention.\n3. Identifikasi maksud dari perintah user (intent), seperti: tambah produk, update stok(penambahan,pengurangan,pengambilan),find (kategori/produk) cek stok, list, sort, dsb.\n4. by_user:{{ $json.message.from.first_name }}\n5. chat_id:{{ $json.message.chat.id }}\n6. message_id:{{ $json.message.message_id }}\n7. buat category dan product_name jadi uppercase, misal \"sepatu\" jadi \"SEPATU\", \"aduhndas\" jadi \"ADUHNDAS\".\n8. Hasilkan JSON terstruktur berisi:\n{\n   \"user\": {\n      \"by_user\": \"...\",\n      \"chat_id\": ....\n      \"message_id\": ....}\n   },\n  \"intent\": \"...\",\n  \"category\": \"...\",\n  \"product_name\": \"...\",\n  \"stock\": ...,\n  \"activity\": \"...\",\n  \"sql_stocks\": \"...\",\n  \"sql_stock_opname\": \"...\",\n  \"valid\": true/false,\n  \"missing_fields\": [...]\n}\n\n# Penjelasan tiap field:\n- `intent`: tindakan utama (lihat daftar intent di bawah)\n- `product_name`: nama produk (jika disebut)\n- `category`: kategori produk (jika disebut)\n- `stock`: jumlah barang (jika disebut)\n- `activity`: jenis aktivitas yang dilakukan user (created, updated), dimana :\n   - `created`: untuk penambahan produk baru\n   - `updated`: untuk mengupdate stok produk\n- `sql_stocks`: query SQL ke tabel stocks\n- `sql_stock_opname`: query SQL ke tabel stock_opname (jika tidak relevan, kosongkan string \"\")\n- `valid`: `true` jika semua field cukup untuk membentuk query, `false` jika ada yang kurang\n- `missing_fields`: list nama field yang kurang jika `valid: false`\n\n# Daftar intent yang didukung:\n- `upsert` (penambahan produk baru atau update stok)\n- `find`\n- `check_stock`\n- `list'\n- `sort` (sorting produk berdasarkan stok atau waktu update)\n- `last_transactions`\n\n9. berikut tabel yang ada:\n   - table `stocks` seperti:\n   TABLE public.stocks (\n      id bigserial PRIMARY KEY,\n      created_at timestamp(0) DEFAULT timezone('UTC', now()),\n      updated_at timestamp(0) DEFAULT timezone('UTC', now()),\n      deleted_at timestamp(0),\n      uuid uuid DEFAULT gen_random_uuid() UNIQUE NOT NULL,\n      category varchar(100),\n      product_name varchar(255),\n      stock int8,\n      by_user varchar(100),\n      activity varchar(100)\n      );\n   - tabel `stock_opname` seperti:\n      TABLE public.stock_opname (\n         id bigserial PRIMARY KEY,\n         created_at timestamp(0) DEFAULT timezone('UTC', now()),\n         updated_at timestamp(0) DEFAULT timezone('UTC', now()),\n         deleted_at timestamp(0),\n         stock_uuid uuid REFERENCES stocks(uuid) NOT NULL,\n         category varchar(100),\n         product_name varchar(255),\n         stock int8,\n         by_user varchar(100),\n         activity varchar(100)\n      );\n10. uuid pada tabel `stocks` diabaikan, karena akan otomatis diisi oleh sistem.\n11. uuid pada tabel `stock_opname` diambil dari hasil insert/update pada tabel `stocks` gunakan sql query untuk mendapatkan uuid dengan where (category dan product).\n12. kolom created_at dan updated_at diabaikan, karena akan otomatis diisi oleh sistem.\n13. Buat query SQL sesuai dengan intent yang diidentifikasi.\n14. Pastikan query SQL sesuai dengan struktur tabel yang ada.\n   - `sql_stocks`: untuk tabel `stocks` sesuai dengan perintah user.\n   - `sql_stock_opname`: untuk tabel `stock_opname` yang mencatat perubahan stok.\n15. sql_stock_opname di isi hanya ketika intent adalah `upsert` atau `update_stock` selain itu buat \"\".\n16. untuk intent\n   - `upsert`,\n      * Pastikan category dan product_name ada pada instruksi user, jika tidak ada, set `valid` ke `false` dan tambahkan nama field yang kurang ke `missing_fields`\n         # jika menambahkan produk baru:\n            * Bat query INSERT ke tabel `stocks` kemudian return uuid nya dilanjutkan INSERT `stock_opname` dengan uuid yang yang sama.\n         # jika mengupdate stok produk: \n            * Buat query UPDATE ke tabel `stocks` kemudian return uuid nya dilanjutkan INSERT ke tabel `stock_opname` dengan uuid yang yang sama.\n   - `find`\n      * Buat query SELECT untuk menemukan data (category/product) dari tabel `stocks` berdasarkan perintah. \n      * jika find category, gunakan SELECT category.\n      * jika find product dan ada kategori, maka gunakan SELECT (product_name,stock) WHERE category = '...' .\n      * jika find product tanpa kategori, gunakan SELECT (product_name,stock) ORDER BY product_name asc.\n    \n   - `check_stock`, \n     * Jika ada kategori, buat query SELECT (category,product_name, stock) ke tabel `stocks` WHERE category = '...'.\n     * Jika tidak ada kategori, buat query SELECT (category,product_name, stock) ORDER BY category asc.\n   - `list`, ada 2 jenis yaitu category dan product \n      1. list by category yaitu  untuk mengambil semua kategori dari tabel `stocks` ORDER BY category asc.\n      2. list product by category yaitu SELECT untuk mengambil semua produk dari tabel `stocks` WHERE category = '...' ORDER BY product_name asc.\n   - `sort`, (sorting produk berdasarkan stock atau updated_at)\n      1. sort by stock yaitu SELECT (kategori,produk,stock) dari tabel `stocks` ORDER BY stock asc atau desc sesuai perintah.\n      2. sort by updated_at yaitu SELECT (kategori,produk,stock, updated) dari tabel `stocks` ORDER BY updated_at asc atau desc sesuai perintah.\n\n   - `last_transactions` ambil transaksi terakhir (kategori,produk,stock,by_user,created_at,activity) , gunakan LIMIT pada query SELECT ke tabel `stock_opname` jika tidak ada limit gunakan LIMIT=10. \n17. Jangan beri penjelasan tambahan di luar JSON.\n18. Selalu output dalam bentuk JSON seperti contoh.\n\n### Contoh output:\n{\n   \"user\": {\n      \"by_user\": \"andrian\",\n      \"chat_id\": 123\n      \"message_id\": 456\n   },\n  \"intent\": \"add_product\",\n  \"product_name\": \"aduhndas\",\n  \"category\": \"sepatu\",\n  \"stock\": 5,\n  \"activity\": \"add\",\n  \"sql_stocks\": \"INSERT INTO stocks (product_name, category, stock, by_user, activity) VALUES ('aduhndas', 'sepatu', 5, 'user', 'add') RETURN uuid;\",\n  \"sql_stock_opname\": \"INSERT INTO stocks (product_name, category, stock, by_user, activity) VALUES ('aduhndas', 'sepatu', 5, 'user', 'add');\",\n  \"valid\": true,\n  \"missing_fields\": []\n}\n\n\nSekarang analisis kalimat berikut dan hasilkan JSON:\n{{ $json.message.text }}\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -3712,
+        608
+      ],
+      "id": "47c6a7d7-b47c-4e17-9283-720d60069cc0",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -4144,
+        624
+      ],
+      "id": "9832064d-459a-467b-a125-aa91a3edcaff",
+      "name": "Telegram Trigger",
+      "webhookId": "f1d34f7a-f556-41d1-a71a-de4dc5e8f37f",
+      "credentials": {
+        "telegramApi": {
+          "id": "XzuDKGBdzbxDBu2H",
+          "name": "inventory"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f79f6439-b965-4185-a448-5495b9cc0ca0",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "@inventory",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3920,
+        624
+      ],
+      "id": "78c5865a-dc98-4099-a3ea-8e9ad13866db",
+      "name": "if mention ?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba9e1203-a6f9-4448-983e-2d9d4ddda856",
+              "name": "message",
+              "value": "its not me",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3904,
+        960
+      ],
+      "id": "2193af78-45b7-4806-a4a8-333f55889724",
+      "name": "no mention"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code node setelah AI Agent\nconst raw = $input.first().json.output;\nconst clean = raw.replace(/```json|```/g, '').trim();\nconst parsed = JSON.parse(clean);\nreturn [{ json: parsed }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3376,
+        608
+      ],
+      "id": "adcea514-6bce-40d9-b306-18f88b0c3680",
+      "name": "parsing json"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -3712,
+        800
+      ],
+      "id": "1783b0c3-df60-43ca-96f1-926dea8ce008",
+      "name": "Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f79f6439-b965-4185-a448-5495b9cc0ca0",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3200,
+        608
+      ],
+      "id": "da4c7a71-ad07-46c3-a885-fc6a13d7ab86",
+      "name": "output valid ?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('parsing json').item.json.intent }}",
+                    "rightValue": "upsert",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "dccec258-5993-4304-bf67-e5fb55fe304d"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "upsert"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7846c277-6cb6-498a-a599-58486cc52b36",
+                    "leftValue": "={{ $('parsing json').item.json.intent }}",
+                    "rightValue": "find",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "find"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fce53aaa-4844-4df4-8ff1-0bf21924a13c",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "check_stock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "check_stock"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a878cb90-e4ed-4157-90cd-90e66f3210e8",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "40f9f554-d7a0-4050-bc6a-1a4deec2d58f",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "sort",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sort"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5e05fad6-5997-4bd3-a790-233865fe71f7",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "last_transactions",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "last_transactions"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2992,
+        432
+      ],
+      "id": "5b9bf69f-89fc-4181-b37c-94f57108939a",
+      "name": "intent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aca06a72-33e6-4f84-9d8e-48891f432221",
+              "name": "sql",
+              "value": "={{ $json.sql_stocks }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2704,
+        448
+      ],
+      "id": "472bc474-9ed0-4d35-936e-e2b96d82d45b",
+      "name": "check_stock"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aca06a72-33e6-4f84-9d8e-48891f432221",
+              "name": "sql",
+              "value": "={{ $json.sql_stock_opname }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2704,
+        880
+      ],
+      "id": "0165ec0d-7feb-4da2-8021-f878e7d84681",
+      "name": "last_transaction"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('response').item.json.user.chat_id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "reply_to_message_id": "={{ $('response').item.json.user.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1184,
+        560
+      ],
+      "id": "870fd480-0d5c-4533-80fb-ffd072df138e",
+      "name": "reply",
+      "webhookId": "a925b32f-6f07-4474-b229-8fa0ecb039eb",
+      "credentials": {
+        "telegramApi": {
+          "id": "XzuDKGBdzbxDBu2H",
+          "name": "inventory"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aca06a72-33e6-4f84-9d8e-48891f432221",
+              "name": "sql",
+              "value": "={{ $json.sql_stocks }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2704,
+        736
+      ],
+      "id": "4a9edc6e-ba12-4a4a-bb6b-a8b0dc81acaf",
+      "name": "sort"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aca06a72-33e6-4f84-9d8e-48891f432221",
+              "name": "sql",
+              "value": "={{ $json.sql_stocks }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2704,
+        592
+      ],
+      "id": "19dfdc65-5246-4ece-b332-6f4c1ba7c09e",
+      "name": "list"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aca06a72-33e6-4f84-9d8e-48891f432221",
+              "name": "sql",
+              "value": "={{ $json.sql_stocks }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2704,
+        304
+      ],
+      "id": "4c71d8be-eb1c-45cd-bab1-37000d32765d",
+      "name": "find"
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('parsing json').first().json;\nconst intent = parsed.intent;\n\nif (intent === 'upsert') {\n  return [\n    {\n      json: {\n        stock: parsed.sql_stocks,\n        stock_opname: parsed.sql_stock_opname\n      }\n    }\n  ];\n}\n\nreturn [];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2480,
+        48
+      ],
+      "id": "2ee46ced-8cb5-4a4d-93a2-8a295329468f",
+      "name": "upsert"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1584,
+        752
+      ],
+      "id": "fcd3c64d-b32b-464f-b963-0034e08308c1",
+      "name": "Gemini1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $('upsert').item.json.stock_opname }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2128,
+        48
+      ],
+      "id": "6ca1519f-ebd1-492c-8c98-a3042f59ff41",
+      "name": "table-stock_opname",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.stock }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2304,
+        48
+      ],
+      "id": "5bab78b3-a14c-422c-aeb5-a4e60df8b7dc",
+      "name": "table-stock",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "if duplicate \nstop here, \nmestinya ada handling",
+        "height": 80,
+        "width": 176
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2320,
+        -32
+      ],
+      "id": "941c1b4e-eed9-414e-a72d-3f81ce7dd2bd",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "RESPONSE FAILED",
+        "height": 80,
+        "width": 176
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2528,
+        1120
+      ],
+      "id": "16206e24-3aa2-4ac5-9711-7f9b931eb19f",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"valid\": {{ $json.valid }},\n  \"reason\": \"data not valid cause field {{ $json.missing_fields[0] }}\"\n}\n ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2512,
+        1152
+      ],
+      "id": "bad0dc4a-7046-4618-9c7b-1e53a00b094c",
+      "name": "Not Valid"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6490c71d-dd58-4c3c-b3db-b7c68ec60863",
+              "name": "stock",
+              "value": "={{ $json.sql_stocks }}",
+              "type": "string"
+            },
+            {
+              "id": "5e1ec789-45d9-4c9d-8483-48725b977ef8",
+              "name": "opname",
+              "value": "={{ $json.sql_stock_opname }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2704,
+        48
+      ],
+      "id": "e3b34c84-3a64-4c6c-8a94-51773cd23703",
+      "name": "create&update"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Kamu adalah AI responder untuk sistem manajemen inventory gudang.\n\nTugasmu adalah membuat response yang terdengar alami dan sopan kepada user Telegram, berdasarkan informasi JSON berikut:\n\n- `intent`:\n  # Daftar intent yang didukung:\n    - `upsert` -> (penambahan produk baru atau update stok)\n    - `find` -> (mencari produk atau kategori)\n    - `check_stock` -> (memeriksa stok produk)\n    - `list` -> (menampilkan daftar kategori atau produk)\n    - `sort` -> (mengurutkan produk berdasarkan stok atau waktu update)\n    - `last_transactions` -> (mengambil transaksi terakhir)\n\n- `product_name`, `category`, `stock`: detail produk yang sedang dimaksud\n- `activity`: aksi seperti `created`, `updated`\n- `valid`: apakah perintah user memiliki data yang cukup\n- `missing_fields`: jika valid = false, tampilkan bagian mana yang kurang\n- `by_user`: nama user {{ $json.user }}\n\n### Aturan response:\n1. Jika `valid` adalah `false`, jawab dengan sopan bahwa data belum lengkap. Sebutkan `missing_fields` agar user bisa melengkapi.\n2. Jika `valid` adalah `true`, buat response yang sesuai dengan `intent` dan `activity`.\n3. Gunakan gaya bahasa ringan, ramah, dan profesional. Gunakan nama `by_user` untuk menyapa jika memungkinkan.\n4. Jangan tampilkan SQL atau data teknis ke user.\n\n### Contoh response:\n- Untuk tambah produk:\n  \"Produk *aduhndas* berhasil ditambahkan ke kategori *sepatu* dengan stok awal *5*. Terima kasih\"\n- Untuk update stok:\n  \"Stok *aduhndas* telah diupdate menjadi *1*. Terima kasih\"\n- Untuk pengecekan:\n  \"Saat ini stok *aduhndas* di kategori *sepatu* adalah *5*.\"\n- Untuk mencari produk:\n  \"Berikut adalah produk yang ditemukan: *aduhndas* di kategori *sepatu*.\"\n- Untuk daftar kategori:\n  \"Kategori yang tersedia saat ini adalah: *SEPATU*, *BAJU*.\"\n- Untuk daftar produk:\n  \"Berikut adalah produk yang tersedia: *aduhndas*, *jaket*.\"\n- Untuk mengurutkan:\n  \"Berikut adalah daftar produk yang diurutkan berdasarkan stok: *aduhndas* - 5, *jaket* - 3.\"\n- Untuk transaksi terakhir:\n  \"Berikut adalah transaksi terakhir yang tercatat: *aduhndas* - 5, *jaket* - 3.\"\n- Jika tidak ada data:\n  \"Maaf, tidak ada data yang ditemukan untuk permintaan ini.\"\n- Jika data tidak lengkap:\n  \"Sepertinya ada data yang kurang, Mohon lengkapi bagian berikut: `stock`, `category`.\"\n\nSekarang analisis kalimat berikut dan buat response yang sesuai:\n{{ $json.response }}\n\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -1584,
+        560
+      ],
+      "id": "4b004122-73cc-4ca6-af16-54007d707aa7",
+      "name": "Response Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "let message = null;\n\nif (!$('parsing json').first().json.valid){\n  message=$input.first().json.reason;\n}else{\n  const intent = $('parsing json').first().json.intent;\n  switch (intent) {\n    case 'upsert':\n      const parsed = $('parsing json').first().json;\n      const activity = $('parsing json').first().json.activity;\n      switch (activity) {\n        case 'created':\n          message = `Produk '${parsed.product_name}' di kategori '${parsed.category}' dengan stok ${parsed.stock} berhasil ditambahkan.`;\n          break;\n        case 'updated':\n          message = `Produk '${parsed.product_name}' di kategori '${parsed.category}' berhasil diupdate stok-nya menjadi ${parsed.stock}.`;\n          break;\n      }\n      break;\n\n    case 'check_stock': {\n      const input = $input.first().json || {};\n      message = `Saat ini stok produk '${input.product_name}' di kategori '${input.category}' adalah ${input.stock}.`;\n      break;\n    }\n\n    case 'find': {\n      const query = $('stock').first().json.query || \"\";\n      const category = $input.first().json.category || \"\";\n      if (!query.toLowerCase().includes('product') && category !== \"\") {\n        message = `Kategori '${category}' ditemukan.`;\n      }else if (query.toLowerCase().includes('product')) {\n        const productName = $input.first().json.product_name || \"\";\n        const stock = $input.first().json.stock || \"\";\n        message = `Produk '${productName}' ditemukan dengan stock '${stock}'`;\n      } else {\n        message = \"Tidak ada produk atau kategori yang ditemukan.\";\n      }\n      break;\n    }\n\n    case 'list': {\n      const query = $('stock').first().json.query || \"\";\n      const category = $input.first().json.category || \"\";\n      if (!query.toLowerCase().includes('product') && category !== \"\") {\n        const categories = $input.all().map(item => `'${item.json.category}'`).join(\", \");\n        message = `Berikut List Kategori  yang tersedia: '${categories}'`;\n      }else if (query.toLowerCase().includes('product')) {\n        const products = $input.all().map(item => item.json.product_name).join(\", \");\n        message = `Berikut List Produk yang tersedia: '${products}'`;\n      } else {\n        message = \"Tidak ada produk atau kategori yang ditemukan.\";\n      }\n      break;\n    }\n\n    case 'sort': {\n      const grouped = {};\n      const query = $('stock').first().json.query || \"\";\n      if (!query.toLowerCase().includes('stock') && !query.toLowerCase().includes('updated_at')) {\n        message = \"Tidak ada pengurutan stok atau waktu update yang ditemukan.\";\n      } else if (!query.toLowerCase().includes('updated_at')) {\n        // Grouping berdasarkan kategori dan sort berdasarkan stock\n        $input.all().forEach(item => {\n          const { category, product_name, stock } = item.json;\n          if (!grouped[category]) grouped[category] = [];\n          grouped[category].push({ product_name, stock: Number(stock) });\n        });\n\n        for (const category in grouped) {\n          grouped[category].sort((a, b) => {\n            return query.toLowerCase().includes('asc')\n              ? a.stock - b.stock\n              : b.stock - a.stock;\n          });\n        }\n\n        // Formatting\n        let formatted = \"\";\n        for (const category in grouped) {\n          formatted += `\\nKategori *${category}*:\\n`;\n          grouped[category].forEach(item => {\n            formatted += `• ${item.product_name}: ${item.stock}\\n`;\n          });\n        }\n\n        message = query.toLowerCase().includes('asc')\n          ? `Stok produk telah diurutkan dari yang paling sedikit:${formatted}`\n          : `Stok produk telah diurutkan dari yang paling banyak:${formatted}`;\n\n      } else if (query.toLowerCase().includes('updated_at')) {\n        // Sorting seluruh produk berdasarkan waktu update\n        const sorted = $input.all()\n          .map(item => {\n            const { category, product_name, stock, updated_at } = item.json;\n            return { category, product_name, stock: Number(stock), updated_at };\n          })\n          .sort((a, b) => {\n            return query.toLowerCase().includes('asc')\n              ? new Date(a.updated_at) - new Date(b.updated_at)\n              : new Date(b.updated_at) - new Date(a.updated_at);\n          });\n\n        // Formatting\n        let formatted = \"\";\n        sorted.forEach(item => {\n          const updated = new Date(item.updated_at).toLocaleString(\"id-ID\", {\n            timeZone: \"Asia/Jakarta\",\n            day: \"2-digit\", month: \"2-digit\", year: \"numeric\",\n            hour: \"2-digit\", minute: \"2-digit\", second: \"2-digit\"\n          });\n          formatted += `• ${item.product_name} (${item.category}) - Stok: ${item.stock}, Terakhir diupdate: ${updated}\\n`;\n        });\n\n        message = query.toLowerCase().includes('asc')\n          ? `Stok produk telah diurutkan dari yang paling lama:\\n${formatted}`\n          : `Stok produk telah diurutkan dari yang paling baru:\\n${formatted}`;\n      }\n\n      break;\n    }\n\n    case 'last_transactions': {\n      const transactions = $input.all()\n        .map(item => {\n          const { category, product_name, stock, by_user, created_at, activity } = item.json;\n          return {\n            category,\n            product_name,\n            stock: Number(stock),\n            by_user,\n            created_at,\n            activity\n          };\n        })\n        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // urutkan terbaru dulu\n\n      if (transactions.length === 0) {\n        message = \"Belum ada transaksi yang tercatat.\";\n        break;\n      }\n\n      message = `📦 Berikut transaksi terakhir:\\n`;\n\n      transactions.forEach((tx, index) => {\n        const time = new Date(tx.created_at).toLocaleString(\"id-ID\", {\n          timeZone: \"Asia/Jakarta\",\n          day: \"2-digit\", month: \"2-digit\", year: \"numeric\",\n          hour: \"2-digit\", minute: \"2-digit\", second: \"2-digit\"\n        });\n        message += `\\n${index + 1}. [${tx.activity.toUpperCase()}] Produk *${tx.product_name}* (Kategori: ${tx.category}) → Stok: ${tx.stock}, oleh ${tx.by_user} pada ${time}`;\n      });\n      break;\n    }\n  }\n\n}\n\n\n\nif (message) {\n  return [{\n    json: {\n      intent:$('parsing json').first().json.intent,\n      user:$('parsing json').first().json.user,\n      response: message\n    }\n  }];\n}\n\nreturn [];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1744,
+        560
+      ],
+      "id": "5d8a394e-623c-4111-8b73-c5920a1bf7ba",
+      "name": "response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.query }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2208,
+        560
+      ],
+      "id": "a8592c89-c605-4556-a7ee-023b95b48ad3",
+      "name": "get-data",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "succes \nbut when not found\nstop here",
+        "height": 80,
+        "width": 160
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2208,
+        496
+      ],
+      "id": "1a3888e5-280b-486f-a418-cd231126a689",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('parsing json').first().json;\nconst sql = parsed.sql_stocks;\n\nreturn [\n  { json: { query: sql } }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2480,
+        560
+      ],
+      "id": "5b76279f-db90-4d8c-bd93-23d7acdf1a40",
+      "name": "stock"
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('parsing json').first().json.sql_stock_opname;\n\nreturn [\n  { json: { query: parsed } }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2464,
+        880
+      ],
+      "id": "e832cf10-03b4-497c-8870-bc9a3eee88fd",
+      "name": "opname"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.query }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2208,
+        880
+      ],
+      "id": "63c40cd0-c694-482f-804b-0c6455d4d597",
+      "name": "history",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "parsing json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "if mention ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if mention ?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "no mention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parsing json": {
+      "main": [
+        [
+          {
+            "node": "output valid ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "output valid ?": {
+      "main": [
+        [
+          {
+            "node": "intent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "intent": {
+      "main": [
+        [
+          {
+            "node": "create&update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "find",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "check_stock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "sort",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "last_transaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reply": {
+      "main": [
+        []
+      ]
+    },
+    "Gemini1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Response Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_stock": {
+      "main": [
+        [
+          {
+            "node": "stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list": {
+      "main": [
+        [
+          {
+            "node": "stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sort": {
+      "main": [
+        [
+          {
+            "node": "stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "find": {
+      "main": [
+        [
+          {
+            "node": "stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upsert": {
+      "main": [
+        [
+          {
+            "node": "table-stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "table-stock": {
+      "main": [
+        [
+          {
+            "node": "table-stock_opname",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "table-stock_opname": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create&update": {
+      "main": [
+        [
+          {
+            "node": "upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Agent": {
+      "main": [
+        [
+          {
+            "node": "reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "response": {
+      "main": [
+        [
+          {
+            "node": "Response Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-data": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "last_transaction": {
+      "main": [
+        [
+          {
+            "node": "opname",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "stock": {
+      "main": [
+        [
+          {
+            "node": "get-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "opname": {
+      "main": [
+        [
+          {
+            "node": "history",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "history": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Valid": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a001d3e6-dd33-425d-8a41-3ada4cc7d7e2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "yYBJEdEJsf9fDadm",
+  "tags": []
+}
