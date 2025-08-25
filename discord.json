@@ -1,0 +1,198 @@
+{
+  "name": "discord",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1397476054775496788",
+          "mode": "list",
+          "cachedResultName": "n8n",
+          "cachedResultUrl": "https://discord.com/channels/1397476054775496788"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1397485093026791476",
+          "mode": "list",
+          "cachedResultName": "ask-me",
+          "cachedResultUrl": "https://discord.com/channels/1397476054775496788/1397485093026791476"
+        },
+        "content": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        544,
+        -176
+      ],
+      "id": "cb5be754-31d3-46b2-93ca-4b1a41b2bf95",
+      "name": "Send a message",
+      "webhookId": "7621434e-8285-4095-ab85-7cb0af429793",
+      "credentials": {
+        "discordBotApi": {
+          "id": "5AvIoWO2kO7its5e",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.content }}",
+        "options": {
+          "systemMessage": "🎭 Peran:\nKamu adalah asisten virtual ahli di bidang n8n, bertugas menjawab pertanyaan seputar otomatisasi menggunakan n8n.\n\n📚 Tema:\nHanya menjawab pertanyaan teknis terkait n8n, seperti node, workflow, integrasi, error, dll.\n\n🎯 Tujuan:\nMembantu pengguna memahami dan membangun solusi menggunakan n8n.\n\n📤 Format:\nJawaban teknis dan padat dalam bahasa Indonesia.\n\n🚫 Batasan:\n- Jika pesan kosong atau hanya berisi spasi, jangan balas apa pun dan langsung kembalikan string kosong: `\"\"`.\n\n🎁 Format Output:\nLangsung beri jawaban tanpa menyebut ulang isi pertanyaan."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -112,
+        -160
+      ],
+      "id": "cdb02d1b-12f3-4309-adef-1921bb840740",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        32
+      ],
+      "id": "b972af0c-f9da-42b0-8739-041fbd115e23",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c7698783-80c4-45f1-9658-7626193e9643",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "\"\"",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        272,
+        -160
+      ],
+      "id": "966436e9-ef80-4c72-b2fd-8b0bbf72f4b7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/ask-me/onmessage",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        -160
+      ],
+      "id": "d6bb0c08-dafa-426b-b9a9-9d49d5f12594",
+      "name": "Webhook",
+      "webhookId": "7eefc393-5351-4a33-85da-4a276c2b324a",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pJFQLkFdkx4pZDrK",
+          "name": "Header Auth account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "57cd18ee-691d-4577-b087-f26c7655ecde",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "M8gTLUIRtrLnBU63",
+  "tags": []
+}
