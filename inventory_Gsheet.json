@@ -1,0 +1,961 @@
+{
+  "name": "inventory_Gsheet",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        -80
+      ],
+      "id": "d691617d-120a-4ec0-ba21-def220ba64c6",
+      "name": "Telegram Trigger",
+      "webhookId": "a14b2819-6f44-40c2-9ead-e14e1d15b632",
+      "credentials": {
+        "telegramApi": {
+          "id": "XzuDKGBdzbxDBu2H",
+          "name": "inventory"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tugasmu adalah menjadi asisten inventory berbasis perintah bahasa alami. Sistem ini terintegrasi dengan Google Sheets menggunakan tools:\n\n- get latest\n- get history\n- upsert latest\n- insert history\n\n🎯 Tujuan:\nMerespons perintah user Telegram (yang mention @inventory_warehouse_bot atau @bot) untuk mengelola inventory gudang secara real-time: menambah, mengubah, mengambil, atau menampilkan data produk.\n\n📨 Input:\n- {{ $json.message.text }} ← isi pesan dari user\n- {{ $json.message.from.first_name }} ← nama user\n- {{ $json.message.date }} ← Unix timestamp (convert ke time.RFC3339 untuk kolom `created_at` dan `updated_at`)\n\n📤 Output:\n- Jawaban harus **string polos** (plain string), tidak boleh mengandung escape character seperti `\\`, newline `\\n`, tanda kutip `\\\"`, atau JSON.\n- Gunakan kalimat deskriptif yang menyampaikan hasil nyata dari tool.\n- **WAJIB** memanggil tool yang relevan. Jangan hanya balas teks saja.\n\n📌 Aturan Eksekusi:\n1. Jika pesan tidak mention @inventory_warehouse_bot atau @bot → Abaikan.\n2. Semua data produk (product, category, rack) HARUS dalam UPPERCASE.\n3. Gunakan sapaan **hanya** jika ini adalah pesan pertama user hari ini.\n4. Deteksi intent dan jalankan tools sebagai berikut:\n\n🔧 Aksi dan Tools:\n- **Tambah produk baru** → `upsert latest` + `insert history` (`activity`: TAMBAH PRODUK)\n- **Tambah stok** → `get latest` → hitung stok + `upsert latest` + `insert history` (`activity`: TAMBAH STOK)\n- **Ambil stok** → `get latest` → kurangi stok + `upsert latest` + `insert history` (`activity`: AMBIL STOK)\n- **Cek produk/kategori** → `get latest`\n- **Lihat histori** → `get history`\n\n🧠 Langkah kerja:\n- Analisis maksud perintah dari teks user.\n- Ekstrak nama produk, jumlah, kategori, dan lokasi rak.\n- Pastikan semua data UPPERCASE.\n- Ubah timestamp ke time.RFC3339.\n- Panggil tool yang sesuai dan kirim hasilnya sebagai respons teks biasa.\n\n📍Contoh:\nUser: \"@bot tambahkan produk gelas plastik ke kategori kemasan, stok 20, rak R2\"\n→ UPPERCASE data: GELAS PLASTIK, KEMASAN, R2\n→ Panggil `upsert latest` dengan input: { product: \"GELAS PLASTIK\", ... }\n→ Panggil `insert history` dengan activity: \"TAMBAH PRODUK\"\n→ Balas: Produk GELAS PLASTIK telah ditambahkan ke kategori KEMASAN di rak R2 dengan stok 20.\n\nUser: \"@bot ambil stok GELAS PLASTIK sebanyak 5\"\n→ Ambil stok dari `get latest`, kurangi 5 → update via `upsert latest` + catat ke `insert history`\n→ Balas: Stok GELAS PLASTIK telah dikurangi 5. Stok saat ini: 45.\n\n---\n\n⚠️ Ingat: Jangan output JSON atau sekadar teks. Gunakan tools yang tersedia untuk setiap aksi nyata.\n\n\nBerikut pesan dari user:\n{{ $json.message.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -80,
+        -80
+      ],
+      "id": "8d9264b4-30c2-4b6a-82a6-383d44fd5c8a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        112
+      ],
+      "id": "78892ae6-f639-4e1a-88e8-afa2710ce172",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "reply_to_message_id": "={{ $('Telegram Trigger').item.json.message.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        512,
+        -96
+      ],
+      "id": "e6cb749c-2bbf-4b30-9a92-aaa9122873ef",
+      "name": "Send a text message",
+      "webhookId": "ead75864-0ccd-488a-a4b7-cf9263ba4b0c",
+      "credentials": {
+        "telegramApi": {
+          "id": "uxNzVwfsRdeoGg5K",
+          "name": "gudang2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dbdec8d7-fda3-4228-9d29-27f43ed667cc",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        -80
+      ],
+      "id": "ae8dd1fa-8a53-4aa5-b849-c63e7404d304",
+      "name": "is not empty ?"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "latest",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        464,
+        144
+      ],
+      "id": "519c0f6c-d75a-42ca-9f4f-d8bd6c8180bf",
+      "name": "get latest",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xeKiomJbjogo76m5",
+          "name": " Sheets "
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 525298966,
+          "mode": "list",
+          "cachedResultName": "history",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit#gid=525298966"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        576,
+        144
+      ],
+      "id": "77659cee-952b-456c-b6ba-63f0b14f4635",
+      "name": "get history",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xeKiomJbjogo76m5",
+          "name": " Sheets "
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 525298966,
+          "mode": "list",
+          "cachedResultName": "history",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit#gid=525298966"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Product": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Product', ``, 'string') }}",
+            "No": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('No', ``, 'string') }}",
+            "Created_at": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Created_at', ``, 'string') }}",
+            "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+            "Stock": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Stock', ``, 'string') }}",
+            "Rack": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Rack', ``, 'string') }}",
+            "User": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('User', ``, 'string') }}",
+            "Activity": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Activity', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "Product"
+          ],
+          "schema": [
+            {
+              "id": "No",
+              "displayName": "No",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Created_at",
+              "displayName": "Created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product",
+              "displayName": "Product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Stock",
+              "displayName": "Stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rack",
+              "displayName": "Rack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User",
+              "displayName": "User",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity",
+              "displayName": "Activity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        304,
+        144
+      ],
+      "id": "dae0ecc3-b184-4a73-87a1-ff22f29ef2f9",
+      "name": "insert history",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xeKiomJbjogo76m5",
+          "name": " Sheets "
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 3
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        48,
+        112
+      ],
+      "id": "7ee2034d-aadb-44ef-870b-bbcc808bdc0d",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"No\": 1,\n  \"Created_at\": \"2025-08-05T10:05:00+07:00\",\n  \"Updated_at\": \"2025-08-05T10:05:00+07:00\",\n  \"Category\": \"KEMASAN\",\n  \"Product\": \"GELAS PLASTIK\",\n  \"Stock\": 20,\n  \"Rack\": \"R2\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        112,
+        -688
+      ],
+      "id": "4c6133c4-8ec2-449c-8cff-945d9badaa7d",
+      "name": "map json"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "latest",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Product"
+          ],
+          "schema": [
+            {
+              "id": "No",
+              "displayName": "No",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_at",
+              "displayName": "Created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Updated_at",
+              "displayName": "Updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product",
+              "displayName": "Product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Stock",
+              "displayName": "Stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rack",
+              "displayName": "Rack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        320,
+        -688
+      ],
+      "id": "beacd645-246b-42f3-874d-dea1a122542e",
+      "name": "upsert",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xeKiomJbjogo76m5",
+          "name": " Sheets "
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "latest",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Product",
+              "lookupValue": "={{ $json.product }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        352,
+        -496
+      ],
+      "id": "2b950be3-b3e5-4ea5-986a-c17afe837830",
+      "name": "read",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xeKiomJbjogo76m5",
+          "name": " Sheets "
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1d69214d-a114-432d-a141-af4e4bdf5d4e",
+              "name": "product",
+              "value": "ADUHNDAS",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        -496
+      ],
+      "id": "6a430b1e-93d5-43b8-a484-ede011e6e81c",
+      "name": "product"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "latest",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Product": "={{ $('product').item.json.product }}",
+            "Stock": "={{ $json.to }}",
+            "Updated_at": "={{ $json.when }}"
+          },
+          "matchingColumns": [
+            "Product"
+          ],
+          "schema": [
+            {
+              "id": "No",
+              "displayName": "No",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Created_at",
+              "displayName": "Created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Updated_at",
+              "displayName": "Updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Product",
+              "displayName": "Product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Stock",
+              "displayName": "Stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rack",
+              "displayName": "Rack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        752,
+        -496
+      ],
+      "id": "ff88f869-02ee-40bb-b393-910f8def04a5",
+      "name": "Update",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xeKiomJbjogo76m5",
+          "name": " Sheets "
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"from\": {{ $json.Stock }},\n  \"to\": 19,\n  \"when\": \"2025-08-05T11:05:00+07:00\"\n}\n ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        -496
+      ],
+      "id": "b5dcf2d3-08c0-437d-b49a-dcdd271a6ab7",
+      "name": "from to"
+    },
+    {
+      "parameters": {
+        "content": "## Part A\n",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        208,
+        288
+      ],
+      "id": "f6afc5d4-092a-400c-b821-2acfc99d6b05",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Part B\n",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        512,
+        288
+      ],
+      "id": "1ddb168a-a2aa-4996-8170-1f9180ef125c",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "latest",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jcUwxAkBixkWaF6hD9W1v1hN422TSQaeyNK6Vs0epuk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "No": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('No', ``, 'string') }}",
+            "Created_at": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Created_at', ``, 'string') }}",
+            "Updated_at": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Updated_at', ``, 'string') }}",
+            "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+            "Product": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Product', ``, 'string') }}",
+            "Stock": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Stock', ``, 'string') }}",
+            "Rack": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Rack', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "Product"
+          ],
+          "schema": [
+            {
+              "id": "No",
+              "displayName": "No",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_at",
+              "displayName": "Created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Updated_at",
+              "displayName": "Updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product",
+              "displayName": "Product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Stock",
+              "displayName": "Stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rack",
+              "displayName": "Rack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        192,
+        144
+      ],
+      "id": "4ce86295-6741-4b6f-ab72-259f9917d0d3",
+      "name": "upsert latest",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xeKiomJbjogo76m5",
+          "name": " Sheets "
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "is not empty ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "is not empty ?": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get latest": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get history": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert history": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "map json": {
+      "main": [
+        [
+          {
+            "node": "upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "product": {
+      "main": [
+        [
+          {
+            "node": "read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read": {
+      "main": [
+        []
+      ]
+    },
+    "from to": {
+      "main": [
+        [
+          {
+            "node": "Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upsert latest": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c0cc45cf-1e17-46bf-9a2e-74eeb2c2f4d1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "31HJaw9ur47DUd0H",
+  "tags": []
+}

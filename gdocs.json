@@ -1,0 +1,255 @@
+{
+  "name": "gdocs",
+  "nodes": [
+    {
+      "parameters": {
+        "outputFieldName": "timestamp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        64,
+        192
+      ],
+      "id": "a14eaaeb-7435-439d-a19c-97e921b13400",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -400,
+        208
+      ],
+      "id": "73854898-5f6f-4a21-bc2f-f29d325030d4",
+      "name": "Telegram Trigger",
+      "webhookId": "0ad057a2-860f-41c6-bc83-0da1874cb31c",
+      "credentials": {
+        "telegramApi": {
+          "id": "UsurQ8nduSCcTkgR",
+          "name": "PA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Kamu adalah asisten penulis komedi untuk seorang stand-up comedian.\nPengguna akan mengirimkan satu bit atau ide setiap hari.\nGunakan tool \"docs\" untuk mencatat hasilnya, kecuali jika pesan pengguna hanya berisi sapaan (contoh: hi, hai, halo, hallo, hello, assalamualaikum, selamat pagi/siang/sore/malam). \nJika pesan hanya berupa sapaan, balas dengan respon singkat ramah (maksimal 2 kalimat) dan jangan simpan ke Docs.\n\n📨 Input:\n- {{ $('Telegram Trigger').item.json.message.text }} ← Bit komedi atau sapaan dari pengguna\n- {{ $('Telegram Trigger').item.json.message.chat.first_name }} ← Nama pengguna\n- {{ $json.timestamp }} ← timestamp dalam UTC (konversi ke UTC+7 dengan format time.RFC3339)\n\nInstruksi jika **bukan** sapaan:\n1. Gunakan bahasa yang sama seperti input pengguna.\n2. Tulis kembali ide asli persis seperti yang dikirimkan pengguna.\n3. Berikan 2-3 alternatif sudut pandang, setup, atau punchline yang membuatnya lebih lucu atau mengejutkan.\n4. Setiap saran boleh berupa:\n   - Pengamatan unik ala komedian (observational humor)\n   - Mini cerita singkat (storytelling) yang relevan dengan ide\n   - Analogi kocak atau perbandingan tak terduga\n5. Setiap saran maksimal 1-2 kalimat.\n6. Gunakan nada yang cocok untuk stand-up comedy di panggung, bukan gaya tulisan formal.\n7. Hindari konten yang menyinggung atau menyerang kelompok tertentu secara tidak pantas.\n8. Ikuti format output dengan presisi.\n\nFormat output (jika bukan sapaan):\n[timestamp yang sudah dikonversi ke UTC+7 RFC3339] oleh: Nama pengguna\nOriginal:\nBit komedi atau sapaan dari pengguna\n\nSuggestions:\n1. <saran pertama>\n2. <saran kedua>\n3. <saran ketiga>\n\n<enter dua kali agar Docs menyimpan dengan benar>\n\nFormat output (jika sapaan):\n<balasan singkat ramah>\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        272,
+        192
+      ],
+      "id": "03122bfb-1cb3-4511-adcc-48632d51b0e4",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        272,
+        368
+      ],
+      "id": "db0408d1-012b-4189-bce2-109788b2c321",
+      "name": "Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0095f996-e1e6-4701-a022-8c4c8ef76df7",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "dd54bd1d-a088-4f1f-9b8e-cbaeb6dcf26f",
+              "leftValue": "={{ $json.message.video_note.file_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -192,
+        208
+      ],
+      "id": "a75867bc-f203-425b-93f0-7cbc7bc95f68",
+      "name": "only text"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "1Riewqbbg_NThEaSKPWo1Tcd1iibxN-s8TKDizOMvExM",
+        "simple": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Simplify', ``, 'boolean') }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('actionFields0_Text', ``, 'string') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        464,
+        368
+      ],
+      "id": "358fd0eb-43f5-4bc2-bfab-d0cd379bf6bb",
+      "name": "docs",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "71kYAl6BE2ONLyut",
+          "name": "docs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "reply_to_message_id": "={{ $('Telegram Trigger').item.json.message.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        192
+      ],
+      "id": "679e98de-9a81-4286-ae94-b7cd87e576ef",
+      "name": "Send a text message",
+      "webhookId": "2930b66b-2c8b-4567-a5f5-8b79fed9aa7c",
+      "credentials": {
+        "telegramApi": {
+          "id": "UsurQ8nduSCcTkgR",
+          "name": "PA"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "only text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "only text": {
+      "main": [
+        [
+          {
+            "node": "Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "docs": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bb78d333-5f5c-43e6-b96c-744b84e18112",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "yvoH5Ka7t53Bbqqh",
+  "tags": []
+}

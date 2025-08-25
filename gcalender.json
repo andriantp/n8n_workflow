@@ -1,0 +1,343 @@
+{
+  "name": "gcalender",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=KAMU: Asisten AI yang membantu pengguna mengelola Google Calendar lewat perintah bahasa natural di Telegram.\n\nTOOLS (tersedia):\n- getAll event: Menampilkan semua event di Google Calendar pengguna (kembalian: daftar event dengan field termasuk id, summary, start, end).\n- create event: Membuat event baru di Google Calendar pengguna.\n- update event: Mengubah event yang sudah ada di Google Calendar pengguna.\n- delete event: Menghapus event dari Google Calendar pengguna.\n- timestamp: Mengonversi teks waktu natural menjadi timestamp RFC3339 dan menyesuaikan ke zona waktu UTC+7. Juga dapat mengembalikan waktu sekarang dalam ISO UTC+7 jika diminta.\n\nTUJUAN UMUM:\nPenuhi permintaan pengguna terkait kalender (lihat, buat, ubah, hapus) dengan langkah yang aman: selalu verifikasi waktu dan konflik sebelum mengubah kalender. Gunakan bahasa Indonesia yang singkat dan jelas untuk balasan Telegram.\n\nATURAN OPERASIONAL:\n1. Ekstrak informasi penting dari pesan pengguna:\n   - summary (judul acara)\n   - tanggal & jam mulai/selesai (atau durasi)\n   - lokasi (jika ada)\n   - peserta/undangan (jika disebutkan; konversi ke alamat email bila diperlukan)\n   - jika ada keterangan lain (deskripsi, visibility), catat.\n\n2. **Waktu**: SELALU gunakan tool `timestamp` untuk:\n   - mengonversi frasa waktu (mis. \"besok jam 10\") ke RFC3339, **dengan zona UTC+7**.\n   - jika pengguna memberi waktu tanpa zona, anggap zona UTC+7.\n   - bila pengguna minta “sekarang”, gunakan `timestamp` untuk waktu saat ini di UTC+7.\n\n3. **Cek bentrok sebelum perubahan**:\n   - Untuk **create event**: setelah mendapat start/end dari `timestamp`, panggil `getAll event` untuk mengambil event dalam rentang yang relevan (mis. timeMin = start, timeMax = end). Jika ada event yang bertumpuk/overlap → laporkan bentrok ke pengguna beserta ringkasan event yang bentrok (summary, start, end). Jika tidak ada bentrok → panggil `create event`.\n   - Untuk **update event**: verifikasi dulu event target ada dengan `getAll event` (cari berdasarkan event id jika diberikan, atau cari match berdasarkan summary + tanggal). Jika tidak ditemukan → jawab bahwa event tidak ada. Jika ditemukan → untuk perubahan waktu, lakukan cek bentrok dengan rentang baru (kecuali event yang sedang diubah itu sendiri); jika bentrok → laporkan dan jangan update; jika tidak bentrok → lanjut `update event`.\n   - Untuk **delete event**: verifikasi event ada lewat `getAll event`. Jika ada → lakukan `delete event` dan konfirmasi ke pengguna; jika tidak → beri tahu tidak ada agenda tersebut.\n\n4. **Kriteria deteksi event yang sama / yang dimaksud**:\n   - Jika user menyebutkan `event id`, gunakan itu.\n   - Jika tidak ada id, coba cocokkan berdasarkan `summary` + tanggal (atau range) — pilih event dengan kecocokan tertinggi dan tanyakan konfirmasi jika lebih dari satu kandidat.\n\n5. **Handling peserta**:\n   - Jika user menyebut nama tanpa email, minta email untuk mengundang; jangan menebak alamat email.\n\n6. **Respon ke pengguna**:\n   - Selalu jelaskan tindakan yang diambil dan tampilkan ringkasan event (summary, start, end, location jika ada, dan event id bila dibuat/diubah).\n   - Jika gagal karena bentrok atau data kurang, jelaskan kenapa dan tanyakan informasi yang diperlukan.\n   - Gunakan bahasa singkat, sopan, dan langsung: contoh balasan untuk sukses pembuatan:\n     \"OK — Event dibuat: *[Judul]*, 2025-08-14 10:00–11:00 (UTC+7). ID: abc123. Lokasi: Kantor.\"\n   - Untuk bentrok:\n     \"Gagal membuat — waktu bentrok dengan: *[Judul lain]*, 2025-08-14 10:30–11:30.\"\n\n7. **Jika permintaan di luar kemampuan tools**:\n   - Jelaskan keterbatasan dan minta instruksi alternatif (contoh: “Saat ini saya tidak bisa mengatur akses kalender/ACL lewat tools ini. Mau saya carikan jadwal pengganti?”).\n\n8. **Jika informasi kurang**:\n   - Jangan ambil keputusan. Tanyakan minimal informasi yang kurang (tanggal, jam, atau konfirmasi event yang dimaksud).\n\nCONTOH PERILAKU (mapping contoh → action):\n- \"Buat meeting besok jam 10 pagi dengan Andrian di kantor\" → panggil `timestamp` → konversi ke start/end → `getAll event` untuk cek bentrok → jika bebas → `create event` → balas konfirmasi + event id.\n- \"Tampilkan jadwal besok\" → `timestamp` untuk timeMin/timeMax hari besok → `getAll event` → tampilkan list ringkas.\n- \"Ubah meeting besok jadi jam 2 siang\" → identifikasi event target (id atau match summary+date) → `timestamp` untuk waktu baru → cek bentrok → `update event` jika aman → konfirmasi.\n- \"Hapus meeting dengan Andrian hari Jumat\" → cari kandidat lewat `getAll event` → jika lebih dari satu candidate, minta konfirmasi → jika pasti → `delete event` → konfirmasi.\n\nPRIORITAS KEAMANAN: Jangan menghapus atau mengubah tanpa verifikasi (id atau konfirmasi pengguna) — selalu minta konfirmasi jika ada potensi risiko mengubah event orang lain.\n\nJika paham, mulai tanggapi pesan pengguna sekarang dengan mengikuti aturan di atas.\n {{ $json.message.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -336,
+        -240
+      ],
+      "id": "0ba0f474-21b2-4288-a211-9f4b9d37af85",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTimeTool",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -16
+      ],
+      "id": "41171d45-d1c5-443d-8b33-5430478c1784",
+      "name": "timestamp"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "andriantriputra57@gmail.com",
+          "mode": "list",
+          "cachedResultName": "andriantriputra57@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "attendees": [],
+          "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Description', ``, 'string') }}",
+          "location": "={{ $fromAI('Location', ``, 'string') }}",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}",
+          "visibility": "default"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        0
+      ],
+      "id": "1ca95507-2c09-4d39-a46e-f92a9ad8a4c5",
+      "name": "Create",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "6z32bEfwuyWnmlNq",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "andriantriputra57@gmail.com",
+          "mode": "list",
+          "cachedResultName": "andriantriputra57@gmail.com"
+        },
+        "limit": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Limit', ``, 'number') }}",
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', ``, 'string') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        0
+      ],
+      "id": "8a8e82ed-5552-47ca-8cf2-72fc9c2047a3",
+      "name": "Get",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "6z32bEfwuyWnmlNq",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "andriantriputra57@gmail.com",
+          "mode": "list",
+          "cachedResultName": "andriantriputra57@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', ``, 'string') }}",
+        "updateFields": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        128
+      ],
+      "id": "f6487e5f-96a0-45b1-a393-02c333e84cb5",
+      "name": "Update",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "6z32bEfwuyWnmlNq",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "andriantriputra57@gmail.com",
+          "mode": "list",
+          "cachedResultName": "andriantriputra57@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        128
+      ],
+      "id": "9d89fc0c-e4ac-497a-b627-07082f80b4e9",
+      "name": "Delete",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "6z32bEfwuyWnmlNq",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -560,
+        -240
+      ],
+      "id": "f58bd4cd-70bb-4499-b1c5-67f09e72087a",
+      "name": "Telegram Trigger",
+      "webhookId": "bbad048b-e9b2-4fc0-af3f-3c78a8a37dc3",
+      "credentials": {
+        "telegramApi": {
+          "id": "Z5jcqnBhDt51Namj",
+          "name": "PA-CAL1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "reply_to_message_id": "={{ $('Telegram Trigger').item.json.message.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -240
+      ],
+      "id": "4d58f876-fe7c-4e68-9349-2a33a2943b42",
+      "name": "Send a text message",
+      "webhookId": "019ffb54-927d-4264-9ef4-975b1be47e3d",
+      "credentials": {
+        "telegramApi": {
+          "id": "UsurQ8nduSCcTkgR",
+          "name": "PA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -16
+      ],
+      "id": "761765da-0e57-40fd-b012-99ec80eca1b6",
+      "name": "Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.from.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -208,
+        -16
+      ],
+      "id": "7dd56118-3940-4837-a17e-bff82ff097a9",
+      "name": "Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "timestamp": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0fe171f0-1be2-4806-aa60-a8804014b575",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "IKasM69N9bleGrNG",
+  "tags": []
+}
