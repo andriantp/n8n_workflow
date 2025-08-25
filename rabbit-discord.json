@@ -1,0 +1,253 @@
+{
+  "name": "rabbit-discord",
+  "nodes": [
+    {
+      "parameters": {
+        "queue": "n8n",
+        "options": {
+          "binding": {
+            "bindings": [
+              {
+                "exchange": "amq.topic",
+                "routingKey": "n8n.discord.ask-me"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.rabbitmqTrigger",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        656
+      ],
+      "id": "f67ef947-0c36-4698-92fd-7c925b4d0f14",
+      "name": "RabbitMQ Trigger",
+      "credentials": {
+        "rabbitmq": {
+          "id": "cJbhutTYKriJm1vc",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🎭 Peran:\nKamu adalah asisten virtual ahli di bidang n8n, bertugas menjawab pertanyaan seputar otomatisasi menggunakan n8n.\n\n📚 Tema:\nHanya menjawab pertanyaan teknis terkait n8n, seperti node, workflow, integrasi, error, dll.\n\n🎯 Tujuan:\nMembantu pengguna memahami dan membangun solusi menggunakan n8n.\n\n📤 Format:\nJawaban teknis dan padat dalam bahasa Indonesia.\n\n🚫 Batasan:\n- Jika pesan kosong atau hanya berisi spasi, jangan balas apa pun dan langsung kembalikan string kosong: `\"\"`.\n\n🎁 Format Output:\nLangsung beri jawaban tanpa menyebut ulang isi pertanyaan."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        656
+      ],
+      "id": "83dc74b2-8bf0-438f-855d-a7b86686a25a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        48,
+        832
+      ],
+      "id": "2dc669e4-d0d8-452c-b2a1-4638fbcd318b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c7698783-80c4-45f1-9658-7626193e9643",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "\"\"",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        656
+      ],
+      "id": "db2bfe46-a4a5-4c86-ad31-169c6a642aeb",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "453096ff-6ca0-429c-8cc3-2e4d28d0e527",
+              "name": "message",
+              "value": "={{ JSON.parse($json.content).content }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -96,
+        656
+      ],
+      "id": "9a79d1f0-0e17-40ee-abca-cebea0e08d27",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1397476054775496788",
+          "mode": "list",
+          "cachedResultName": "n8n",
+          "cachedResultUrl": "https://discord.com/channels/1397476054775496788"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1397485093026791476",
+          "mode": "list",
+          "cachedResultName": "ask-me",
+          "cachedResultUrl": "https://discord.com/channels/1397476054775496788/1397485093026791476"
+        },
+        "content": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        112,
+        224
+      ],
+      "id": "5923df11-e00a-403b-b6f3-8d43cb351741",
+      "name": "Send a message",
+      "webhookId": "24d255c4-3cbd-4be7-a9a6-2532f3ed1c86",
+      "credentials": {
+        "discordBotApi": {
+          "id": "5AvIoWO2kO7its5e",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ JSON.parse($('RabbitMQ Trigger').item.json.content).channelID }}/messages\n",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Authorization\": \"Bot \",\n  \"Content-Type\": \"application/json\"\n}\n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ \n  JSON.stringify({\n    content: $json.output,\n    message_reference: {\n      message_id: JSON.parse($('RabbitMQ Trigger').item.json.content).messageID\n    }\n  }) \n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        592,
+        640
+      ],
+      "id": "7973d40e-6df5-462c-b705-3752878efda8",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "RabbitMQ Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c4490d3f-2a40-4457-9653-77484b9512cb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "mWdGvcYSdMbvk3ZG",
+  "tags": []
+}
