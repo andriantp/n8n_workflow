@@ -1,0 +1,752 @@
+{
+  "name": "postgres1",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -528
+      ],
+      "id": "1b3a5326-43e6-4d23-b14e-ded1f9f84e46",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stock": "={{ $json.stock }}",
+            "category": "={{ $json.category }}",
+            "sku": "={{ $json.sku }}",
+            "product_name": "={{ $json.product_name }}",
+            "by_user": "={{ $json.by_user }}",
+            "activity": "={{ $json.activity }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "deleted_at",
+              "displayName": "deleted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "uuid",
+              "displayName": "uuid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sku",
+              "displayName": "sku",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stock",
+              "displayName": "stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "by_user",
+              "displayName": "by_user",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "activity",
+              "displayName": "activity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        80,
+        -528
+      ],
+      "id": "7e85512a-52e0-42ff-84e8-4338071ee6e7",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"category\": \"sepatu\",\n  \"sku\": \"A002\",\n  \"product_name\": \"diadora\",\n  \"stock\": 7,\n  \"by_user\":\"andrian\",\n  \"activity\":\"insert\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -192,
+        -528
+      ],
+      "id": "f3c55213-9f82-4798-a3f2-eeb637ca60e9",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -368,
+        -336
+      ],
+      "id": "5ceededa-c6c9-441d-babf-a550b986ac72",
+      "name": "Select rows from a table",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stock": "={{ $json.stock }}",
+            "sku": "={{ $json.sku }}",
+            "by_user": "={{ $json.by_user }}",
+            "activity": "={{ $json.activity }}"
+          },
+          "matchingColumns": [
+            "sku"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "deleted_at",
+              "displayName": "deleted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "uuid",
+              "displayName": "uuid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "sku",
+              "displayName": "sku",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "stock",
+              "displayName": "stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "by_user",
+              "displayName": "by_user",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "activity",
+              "displayName": "activity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -128,
+        -160
+      ],
+      "id": "f879fe1a-9527-433b-acbe-632483f1d06f",
+      "name": "Update rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"sku\": \"A001\",\n  \"stock\": 4,\n  \"by_user\":\"andrian\",\n  \"activity\":\"update\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -368,
+        -160
+      ],
+      "id": "7b9afcce-0c09-47e8-bba5-cd1d9501cd3c",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "content": "CREATE",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -512
+      ],
+      "id": "e2c59f89-4c19-410b-9b8a-a2fac2c92a03",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "READ",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        -320
+      ],
+      "id": "37588a60-4713-4abe-acde-b34c6933bf61",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "UPDATE",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -160
+      ],
+      "id": "0fbe5a0b-873e-4b6a-a766-75d91800eb42",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "deleteCommand": "delete",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -160,
+        64
+      ],
+      "id": "5fe97e95-1bd9-47b3-a6f5-32a607d9da10",
+      "name": "Delete table or rows",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"sku\": \"A001\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        144
+      ],
+      "id": "a2895f0c-767e-49b1-a3c1-85d05f947539",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM stocks WHERE sku = '{{ $json.sku }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -144,
+        240
+      ],
+      "id": "4b4f8dfc-e5af-47f1-b033-33ba69cc4cf4",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "DELETE",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        160
+      ],
+      "id": "378a2f36-af97-4322-a3cc-8e7260c9c97b",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "tableName": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "additionalFields": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTrigger",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        496
+      ],
+      "id": "4c1d9352-b820-4c18-bf16-d282fc192c8f",
+      "name": "Postgres Trigger",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "EVENT-INSERT",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        496
+      ],
+      "id": "2465cd04-22c9-4362-b8a9-58baa9939974",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "tableName": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "firesOn": "UPDATE",
+        "additionalFields": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTrigger",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        784
+      ],
+      "id": "d671e5be-e757-4e48-9cb5-dd79d4431649",
+      "name": "Postgres Trigger1",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "EVENT-DELETED",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        784
+      ],
+      "id": "bab4f8ba-66c8-4785-824a-703bb299a707",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT category FROM stocks ORDER BY category ASC LIMIT 10;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        80,
+        688
+      ],
+      "id": "0724a97f-01e2-487d-9423-d0c3df42cae7",
+      "name": "Execute a SQL query1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "WORKFLOW-1",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        688
+      ],
+      "id": "a42c979a-397b-4177-9cc0-26a7ff9d991f",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"sku\": \"A001\",\n  \"by_user\":\"carman\",\n  \"activity\": \"delete\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -144,
+        1136
+      ],
+      "id": "08f6cea3-da8f-4f27-9787-8ea1f26d8bbe",
+      "name": "SET SKU"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.stocks\nSET \n    deleted_at = (NOW() AT TIME ZONE 'UTC'),\n    by_user = '{{ $json.by_user }}',\n    activity = '{{ $json.activity }}'\nWHERE sku = '{{ $json.sku }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        96,
+        1136
+      ],
+      "id": "b9f46ede-1b30-451e-942b-b196269bcf56",
+      "name": "SQL Query Soft-Delete",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "WORKFLOW-2",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        1040
+      ],
+      "id": "d306914f-195e-4569-82a3-6a3f0c9b827a",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "SOFT DELETE",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        1152
+      ],
+      "id": "b5f40061-7e16-482a-9ab7-750db6c55d6d",
+      "name": "Sticky Note8"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        []
+      ]
+    },
+    "Postgres Trigger1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e21f7e57-82b9-4308-b9be-81a296557b52",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "rfw8R1ABDbizWu0t",
+  "tags": []
+}

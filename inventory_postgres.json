@@ -1,0 +1,631 @@
+{
+  "name": "inventory_postgres",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tugasmu adalah menjadi asisten inventory berbasis perintah bahasa alami. Sistem ini terintegrasi dengan Google Sheets menggunakan tools:\n\n- get latest\n- get history\n- upsert latest\n- insert history\n\n🎯 Tujuan:\nMerespons perintah user Telegram (yang mention @inventory_warehouse_bot atau @bot) untuk mengelola inventory gudang secara real-time: menambah, mengubah, mengambil, atau menampilkan data produk.\n\n📨 Input:\n- {{ $json.message.text }} ← isi pesan dari user, jangan diubah jadi UPPERCASE\n- {{ $json.message.from.first_name }} ← nama user\n\n📤 Output:\n- Jawaban harus **string polos** (plain string), tidak boleh mengandung escape character seperti `\\`, newline `\\n`, tanda kutip `\\\"`, atau JSON.\n- Gunakan kalimat deskriptif yang menyampaikan hasil nyata dari tool.\n- **WAJIB** memanggil tool yang relevan. Jangan hanya balas teks saja.\n\n📌 Aturan Eksekusi:\n1. Jika pesan tidak mention @inventory_warehouse_bot atau @bot → Abaikan.\n2. Semua data produk (product, category, rack) HARUS dalam UPPERCASE kecuali user.\n3. Gunakan sapaan **hanya** jika ini adalah pesan pertama user hari ini.\n4. Deteksi intent dan jalankan tools sebagai berikut:\n\n🔧 Aksi dan Tools:\n- **Tambah produk baru** → `upsert latest` + `insert history` (`activity`: TAMBAH PRODUK) dengan uuid saat `insert history` diambil dari uuid ketika `upsert latest`.\n- **Tambah stok** → `get latest` → new stok=stock dari `get latest` ditambah stock dari user -> new stok ini digunakan untuk  `upsert latest` +  `insert history` (`activity`: TAMBAH STOK).\n- **Ambil stok** → `get latest` →  new stok=stock dari `get latest` dikurangi stock dari user -> new stok ini digunakan untuk `upsert latest` +  `insert history` (`activity`: AMBIL STOK) . new stok tidak boleh negatif.\n- **Cek produk/kategori** → `get latest`\n- **Cek stok** → `get latest`\n- **Lihat histori** → `get history`\n\n🧠 Langkah kerja:\n- Analisis maksud perintah dari teks user.\n- Ekstrak nama produk, jumlah, kategori, dan lokasi rak.\n- Pastikan semua data UPPERCASE kecuali user.\n- Panggil tool yang sesuai dan kirim hasilnya sebagai respons teks biasa.\n\n📍Contoh:\nUser: \"@bot tambahkan produk gelas plastik ke kategori kemasan, stok 20, rak R2\"\n→ UPPERCASE data: GELAS PLASTIK, KEMASAN, R2\n→ Panggil `upsert latest` dengan input: { product: \"GELAS PLASTIK\", ... }\n→ Panggil `insert history` dengan activity: \"TAMBAH PRODUK\"\n→ Balas: Produk GELAS PLASTIK telah ditambahkan ke kategori KEMASAN di rak R2 dengan stok 20.\n\nUser: \"@bot ambil stok GELAS PLASTIK sebanyak 5\"\n→ Ambil stok dari `get latest`, kurangi 5 → update via `upsert latest` + catat ke `insert history`\n→ Balas: Stok GELAS PLASTIK telah dikurangi 5. Stok saat ini: 45.\n\n---\n\n⚠️ Ingat: Jangan output JSON atau sekadar teks. Gunakan tools yang tersedia untuk setiap aksi nyata.\n\n\nBerikut pesan dari user:\n{{ $json.message.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        -176
+      ],
+      "id": "42e65fb8-035b-4073-9d73-a12479730447",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        16
+      ],
+      "id": "ba9ee1fa-b764-4ec4-a9f2-f3bd450eb997",
+      "name": "Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lwxeGUip1gvXH0YA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('AI Agent').item.json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "reply_to_message_id": "={{ $('Telegram Trigger').item.json.message.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        608,
+        -192
+      ],
+      "id": "f6cd4da6-70a2-4e25-ac88-37c2df0d3d43",
+      "name": "reply",
+      "webhookId": "a925b32f-6f07-4474-b229-8fa0ecb039eb",
+      "credentials": {
+        "telegramApi": {
+          "id": "fyXdeh4nEOwwWGW0",
+          "name": "inventory2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Part A\n",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        256,
+        224
+      ],
+      "id": "afab5519-85ad-433d-9e1d-5a006c756228",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Part B\n",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        560,
+        224
+      ],
+      "id": "0239ae56-8a4d-4d3a-8042-96fdb0545ff8",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dbdec8d7-fda3-4228-9d29-27f43ed667cc",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        -176
+      ],
+      "id": "1aac853b-7290-4ba9-877d-6ce347dcea61",
+      "name": "is not empty ?"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -256,
+        -176
+      ],
+      "id": "b02d84c3-ee08-4f60-bda7-4300a2d74636",
+      "name": "Telegram Trigger",
+      "webhookId": "d7c42709-4a54-4f66-b37f-5419116159d4",
+      "credentials": {
+        "telegramApi": {
+          "id": "XzuDKGBdzbxDBu2H",
+          "name": "inventory"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stock": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('stock', ``, 'number') }}",
+            "product": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('product__using_to_match_', ``, 'string') }}",
+            "category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('category', ``, 'string') }}",
+            "rack": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('rack', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "category",
+            "product"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "deleted_at",
+              "displayName": "deleted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "uuid",
+              "displayName": "uuid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product",
+              "displayName": "product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "stock",
+              "displayName": "stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "rack",
+              "displayName": "rack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        224,
+        80
+      ],
+      "id": "13ba19c9-f9e7-4fe2-b4c0-9cc549df10d7",
+      "name": "upsert latest",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stock_opname",
+          "mode": "list",
+          "cachedResultName": "stock_opname"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stock_uuid": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('stock_uuid', ``, 'string') }}",
+            "category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('category', ``, 'string') }}",
+            "product": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('product', ``, 'string') }}",
+            "stock": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('stock', ``, 'number') }}",
+            "rack": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('rack', ``, 'string') }}",
+            "by_user": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('by_user', ``, 'string') }}",
+            "activity": "={{ $fromAI('activity', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "deleted_at",
+              "displayName": "deleted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "stock_uuid",
+              "displayName": "stock_uuid",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "product",
+              "displayName": "product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stock",
+              "displayName": "stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rack",
+              "displayName": "rack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "by_user",
+              "displayName": "by_user",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "activity",
+              "displayName": "activity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        352,
+        80
+      ],
+      "id": "85660ed2-d50c-474c-9b33-96b095ae471e",
+      "name": "insert history",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stocks",
+          "mode": "list",
+          "cachedResultName": "stocks"
+        },
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', ``, 'boolean') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        528,
+        80
+      ],
+      "id": "72fd38ff-1879-4489-8bf9-9d627a3cf693",
+      "name": "get latest",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stock_opname",
+          "mode": "list",
+          "cachedResultName": "stock_opname"
+        },
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', ``, 'boolean') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        80
+      ],
+      "id": "d93ff1e3-7187-4ecc-93d9-e8c908347ea0",
+      "name": "get history",
+      "credentials": {
+        "postgres": {
+          "id": "14jb5rtKO8uLnfkc",
+          "name": "warehouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        16
+      ],
+      "id": "a0f959f4-1d80-48cc-901e-1becdf33a026",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "is not empty ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upsert latest": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert history": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get latest": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get history": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "is not empty ?": {
+      "main": [
+        [
+          {
+            "node": "reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "84618713-35e8-486a-afd5-46506f5db2d2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "Q5Ko0sjyieK2eWlq",
+  "tags": []
+}
