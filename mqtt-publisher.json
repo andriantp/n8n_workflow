@@ -1,0 +1,117 @@
+{
+  "name": "mqtt-publisher",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        128
+      ],
+      "id": "1a266337-684e-49f1-9346-17a257fef5b5",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "outputFieldName": "timestamp",
+        "options": {
+          "timezone": "Asia/Jakarta"
+        }
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        128
+      ],
+      "id": "ed92b228-ce53-407e-8415-2c25a0b5596f",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"site\":\"sudirman\",\n  \"timestamp\":\"{{ $json.timestamp }}\",\n  \"state\":\"idle\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        128
+      ],
+      "id": "75adee9b-0f4f-49b3-81a4-8317efc350b1",
+      "name": "SET"
+    },
+    {
+      "parameters": {
+        "topic": "traffict_lights",
+        "options": {
+          "qos": 0,
+          "retain": false
+        }
+      },
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        224,
+        128
+      ],
+      "id": "2e3b1c0a-956c-4fc2-9537-145ba7a43bba",
+      "name": "MQTT",
+      "credentials": {
+        "mqtt": {
+          "id": "1P9oSH7P7JBRga3R",
+          "name": "publish"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "main": [
+        [
+          {
+            "node": "SET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SET": {
+      "main": [
+        [
+          {
+            "node": "MQTT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0e5ebf7c-7530-4ad9-9235-5c0a4b9289dc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "TWIB9JSFHc8UFaEs",
+  "tags": []
+}

@@ -1,0 +1,297 @@
+{
+  "name": "mqtt-subs",
+  "nodes": [
+    {
+      "parameters": {
+        "topics": "traffict_lights",
+        "options": {
+          "jsonParseBody": true
+        }
+      },
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        96
+      ],
+      "id": "225947d4-e5c9-40e1-ab20-c8f0b09c7887",
+      "name": "MQTT Trigger",
+      "credentials": {
+        "mqtt": {
+          "id": "Q62pLtXTNoO3KL02",
+          "name": "subscriber"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.state }}",
+                    "rightValue": "idle",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b804780d-753b-43cb-b4c7-bead8c0493e6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "OFF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8a39afcb-a5d1-4e16-93ff-b8eb07b9431a",
+                    "leftValue": "={{ $json.message.state }}",
+                    "rightValue": "red",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "RED"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cbf30980-5b51-48f0-bf93-490a8080adb2",
+                    "leftValue": "={{ $json.message.state }}",
+                    "rightValue": "yellow",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YELLOW"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "888538e0-d2b5-4e75-87d9-392e3166b6e5",
+                    "leftValue": "={{ $json.message.state }}",
+                    "rightValue": "green",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=GREEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        80,
+        64
+      ],
+      "id": "9b6cbef7-1167-46b1-9942-9ba5e1a8cc81",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "102bc8a6-7381-4180-a8c2-ca4ad5150deb",
+              "name": "lamp",
+              "value": "={{ $json.message.state }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        -112
+      ],
+      "id": "ec3899b9-6729-49b4-839a-6e81765fcf56",
+      "name": "OFF"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "509ae4fe-aec1-4ef5-9812-c46ac36892e5",
+              "name": "lamp",
+              "value": "={{ $json.message.state }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        32
+      ],
+      "id": "89a39ac2-a749-410f-be77-95ead203d139",
+      "name": "RED"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "291f1ca8-feb5-4211-b0f0-f6d949d0cd36",
+              "name": "lamp",
+              "value": "={{ $json.message.state }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        176
+      ],
+      "id": "786b0426-db54-41bf-92b7-bbf71f71fa1b",
+      "name": "YELLOW"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "291f1ca8-feb5-4211-b0f0-f6d949d0cd36",
+              "name": "",
+              "value": "={{ $json.message.state }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        336
+      ],
+      "id": "e7b0e13c-d01e-4547-828d-de6ef9bc4b51",
+      "name": "GREEN"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "MQTT Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "OFF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RED",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YELLOW",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GREEN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RED": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ec2a30eb-2ce8-4d36-b9ca-6bc7e6c3414e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a7015536f8a37ff32757bd3f66134acc6196ed75579e32054f1b1e525fea84c1"
+  },
+  "id": "qjhSt3bsyZRbd7wU",
+  "tags": []
+}
